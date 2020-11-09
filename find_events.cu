@@ -119,7 +119,7 @@ int main(int argc, char ** argv) {
   h_high_mean = (float*)calloc(1, sizeof(float));
 
   //Allocate GPU memory
-  cudaMallocHost((void**) &d_values, cropped_bytes);
+  cudaMalloc((void**) &d_values, cropped_bytes);
   cudaMalloc((void**) &d_smoothed, cropped_bytes);
   cudaMalloc((void**) &d_transitions, sizeof(int) * BLOCKS);
   cudaMalloc((void**) &d_high_mean, sizeof(float));

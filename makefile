@@ -36,12 +36,12 @@ signal.dat: signal.csv
 	python text_to_binary.py signal.csv
 	python plot_data.py one signal.csv
 
-run: all # usage here is that the data as argv[2], with the correct option at compile-time
+run: all signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
 	./$(NAME) mean
 	./$(NAME) delta
 	./$(NAME) canny
 
-csv: all # usage here is that the data as argv[2], with the correct option at compile-time
+csv: all signal.csv # usage here is that the data as argv[2], with the correct option at compile-time
 	./$(NAME) mean signal.csv
 	./$(NAME) delta signal.csv
 	./$(NAME) canny signal.csv
