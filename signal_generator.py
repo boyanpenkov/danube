@@ -5,15 +5,15 @@ import matplotlib
 matplotlib.use('WXAgg')
 import matplotlib.pyplot as plt
 
-points = int(sys.argv[1]) #total points
-frequency = 50000 #fake made-up sample frequency of input signal -- Chimera is 1MHz
+points = int(sys.argv[1]) # total points
+frequency = 50000 # fake made-up sample frequency of input signal -- Chimera is 1MHz
 
 high_mean = 10
 current_sd = 0.1
 
 event_space = 1 # second
-event_time = 0.1 #second
-event_time_sd = 0.05 #second
+event_time = 0.1 # second
+event_time_sd = 0.05 # second
 event_depth = 0.6
 event_depth_sd = 0.05
 
