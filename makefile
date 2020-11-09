@@ -43,3 +43,5 @@ csv: all signal.csv # usage here is that the data as argv[2], with the correct o
 plot:
 	python plot_csv.py signal.csv
 
+c: all signal.dat
+	./find_events c

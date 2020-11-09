@@ -43,19 +43,25 @@ int main(int argc, char ** argv) {
   int expected_values = EVENTS;
   int inBinaryFile;
 
+  const char *available_kernels[4];
+  available_kernels[0] = "mean";
+  available_kernels[1] = "delta";
+  available_kernels[2] = "canny";
+  available_kernels[3] = "c";
+
   if (READ_OPT == 1)
     {
       printf("You are reading the CSV as an arg!\n");
       char *filename = strdup(argv[2]);
       std::ifstream inTextFile;
-      //Open the file and read data
+      // Open the file and read data
       inTextFile.open(filename);
       if (!inTextFile)
 	{
 	  printf("\nFailed to open file on csv run!\n");
 	  return 1;
 	}
-      //Read SIZE from first line of the file
+      // Read SIZE from first line of the file
       inTextFile >> SIZE;
     }
   else
@@ -74,6 +80,8 @@ int main(int argc, char ** argv) {
 
   printf("%d was the number of points you just passed in.\n", SIZE);
 
+  assert(SIZE > 0);
+
   const int THREADS = MACRO_THREADS;
   const int BLOCKS = floor((((float)SIZE / (float)THREADS)) / PPT);
   printf("Block count: %d.\n", BLOCKS);
@@ -82,6 +90,11 @@ int main(int argc, char ** argv) {
   const int cropped_bytes = cropped_size*sizeof(float);
   printf("%d was as close as I could get.\n", cropped_size);
   fflush(stdout);
+
+  assert(THREADS > 0);
+  assert(BLOCKS > 0);
+  assert(cropped_size > 0);
+  assert(cropped_size < SIZE);
 
   // Now, copy the input and drop the last few points
 
@@ -108,38 +121,17 @@ int main(int argc, char ** argv) {
     }
 
   cudaMallocHost((void**) &h_values, cropped_bytes);
+  FILE *f;  // Regardless of CPU or GPU, this is the file you're writing results to.
 
   int i;
   for(i=1; i<cropped_size; i++)
     {
         h_values[i] = h_values_raw[i];
     }
+
   free(h_values_raw);
   h_transitions = (int*)calloc(BLOCKS, sizeof(int));
   h_high_mean = (float*)calloc(1, sizeof(float));
-
-  //Allocate GPU memory
-  cudaMalloc((void**) &d_values, cropped_bytes);
-  cudaMalloc((void**) &d_smoothed, cropped_bytes);
-  cudaMalloc((void**) &d_transitions, sizeof(int) * BLOCKS);
-  cudaMalloc((void**) &d_high_mean, sizeof(float));
-  cudaMalloc((void**) &d_size, sizeof(int));
-  cudaMalloc((void**) &d_gradient, cropped_bytes);
-
-  cudaStream_t stream1;
-  cudaStreamCreate(&stream1);
-
-  const char *available_kernels[3];
-  available_kernels[0] = "mean";
-  available_kernels[1] = "delta";
-  available_kernels[2] = "canny";
-
-  cudaMemcpyAsync(d_values, h_values, cropped_bytes, cudaMemcpyHostToDevice, stream1);
-
-  printf("Host-to-device copy initiated.\n");
-  fflush(stdout);
-  
-  //Launch the kernel
 
   if (argc == 1)
     {
@@ -150,47 +142,74 @@ int main(int argc, char ** argv) {
       return 1;
     }
 
-  FILE *f;
-  printf("All pre-kernel launch stuff OK.\n");
-  fflush(stdout);
-  if (strcmp(argv[1], "delta") == 0)
+  if (strcmp(argv[1], "c") == 0)
     {
-      //Transfer the array to GPU
-      cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
-      find_transitions_delta <<< BLOCKS, THREADS, 0, stream1>>>(d_values, d_transitions, PPT, MACRO_THREADS);
-      //copy the result back to CPU
-      f = fopen("transitions_guessed_delta.csv", "w");
-      expected_values = EVENTS*2;
-      cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
-    }
-  else if (strcmp(argv[1], "mean") == 0)
-    {
-      *h_high_mean = find_high_random(h_values);
-      cudaMemcpy(d_high_mean, h_high_mean, sizeof(float), cudaMemcpyHostToDevice);
-      find_transitions_mean <<< BLOCKS, THREADS, 0, stream1>>>(d_values, d_transitions, PPT, MACRO_THREADS, d_high_mean);
-      f = fopen("transitions_guessed_mean.csv", "w");
-      cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
-    }
-  else if (strcmp(argv[1], "canny") == 0)
-    {
-      //Transfer the array to GPU
-      cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
-      mean_filter_signal<<< BLOCKS, THREADS,0, stream1>>>(d_values, PPT, FILT_WINDOW, d_size, d_smoothed);
-      find_transitions_canny<<< BLOCKS, THREADS,0, stream1 >>>(d_values, d_transitions, PPT, d_size, d_gradient);
-      f = fopen("transitions_guessed_canny.csv", "w");
-      expected_values = EVENTS*2;
-      cudaMemcpy(h_values, d_gradient, cropped_bytes, cudaMemcpyDeviceToHost);
-    }
-  else
-    {
-      printf("Run with one of the arguments: ");
-      for (int i = 0; i < sizeof(available_kernels) / sizeof(available_kernels[0]); i++)
-	printf("%s ", available_kernels[i]);
-      printf("\n");
-      return 1;
+      printf("Using CPU.\n");
+      // Now you are not using the GPU at all, and are just on C on the CPU.
     }
 
-  //Write the found transitions to a file
+  else
+    { // You are in the GPU branch.
+      // Allocate GPU memory
+      printf("Using GPU.\n");
+      cudaMalloc((void**) &d_values, cropped_bytes);
+      cudaMalloc((void**) &d_smoothed, cropped_bytes);
+      cudaMalloc((void**) &d_transitions, sizeof(int) * BLOCKS);
+      cudaMalloc((void**) &d_high_mean, sizeof(float));
+      cudaMalloc((void**) &d_size, sizeof(int));
+      cudaMalloc((void**) &d_gradient, cropped_bytes);
+
+      cudaStream_t stream1;
+      cudaStreamCreate(&stream1);
+      cudaMemcpyAsync(d_values, h_values, cropped_bytes, cudaMemcpyHostToDevice, stream1);
+      printf("Host-to-device copy initiated.\n");
+      fflush(stdout);
+      // Launch the kernel
+
+      printf("All pre-kernel launch stuff OK.\n");
+      fflush(stdout);
+      if (strcmp(argv[1], "delta") == 0)
+	{
+	  // Transfer the array to GPU
+	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
+	  find_transitions_delta <<< BLOCKS, THREADS, 0, stream1>>>(d_values, d_transitions, PPT, MACRO_THREADS);
+	  // copy the result back to CPU
+	  f = fopen("transitions_guessed_delta.csv", "w");
+	  expected_values = EVENTS*2;
+	  cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
+	}
+      else if (strcmp(argv[1], "mean") == 0)
+	{
+	  *h_high_mean = find_high_random(h_values);
+	  cudaMemcpy(d_high_mean, h_high_mean, sizeof(float), cudaMemcpyHostToDevice);
+	  find_transitions_mean <<< BLOCKS, THREADS, 0, stream1>>>(d_values, d_transitions, PPT, MACRO_THREADS, d_high_mean);
+	  f = fopen("transitions_guessed_mean.csv", "w");
+	  cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
+	}
+      else if (strcmp(argv[1], "canny") == 0)
+	{
+	  // Transfer the array to GPU
+	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
+	  mean_filter_signal<<< BLOCKS, THREADS,0, stream1>>>(d_values, PPT, FILT_WINDOW, d_size, d_smoothed);
+	  find_transitions_canny<<< BLOCKS, THREADS,0, stream1 >>>(d_values, d_transitions, PPT, d_size, d_gradient);
+	  f = fopen("transitions_guessed_canny.csv", "w");
+	  expected_values = EVENTS*2;
+	  cudaMemcpy(h_values, d_gradient, cropped_bytes, cudaMemcpyDeviceToHost);
+	}
+      else
+	{
+	  printf("Run with one of the arguments: ");
+	  for (int i = 0; i < sizeof(available_kernels) / sizeof(available_kernels[0]); i++)
+	    printf("%s ", available_kernels[i]);
+	  printf("\n");
+	  return 1;
+	}
+      // free GPU memory
+      cudaFree(d_values);
+      cudaStreamDestroy(stream1);
+    }
+
+  // Write the found transitions to a file
   for (int i = 0; i < cropped_size; i++)
     fprintf(f, "%f\n", h_values[i]);
   fclose(f);
@@ -205,7 +224,7 @@ int main(int argc, char ** argv) {
       eventFlag = 'T'; // walked into event
     }
     else if (h_values[i] != NOT_EVENT && eventFlag == 'T'){
-      continue; //moving along event
+      continue; // moving along event
     }
     else if (h_values[i] == NOT_EVENT && eventFlag == 'T'){
       total_transitions++;
@@ -215,8 +234,4 @@ int main(int argc, char ** argv) {
   }
   printf("Computed with %s : ", argv[1]);
   printf("%d (%d expected for synthetically generated data.)\n", total_transitions, expected_values);
-
-  //free GPU memory
-  cudaFree(d_values);
-  cudaStreamDestroy(stream1);
 }
