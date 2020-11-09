@@ -3,7 +3,7 @@
 
 #define PPT 64
 #define FILT_WINDOW 5
-#define EVENTS 200
+#define EVENTS 5
 
 //1 = text file
 //2 = binary file

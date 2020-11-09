@@ -8,7 +8,6 @@ sample_rate = 1.041666e6
 
 # Utilization here is bip_plot_csv file_name_with_data.csv
 
-#mpl.use('WXAgg')
 mpl.rcParams['agg.path.chunksize'] = 1000000000
 
 import matplotlib.pyplot as plt
