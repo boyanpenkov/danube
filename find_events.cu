@@ -52,7 +52,7 @@ int main(int argc, char ** argv) {
       inTextFile.open(filename);
       if (!inTextFile)
 	{
-	  printf("\nFailed to open file");
+	  printf("\nFailed to open file on csv run!\n");
 	  return 1;
 	}
       //Read SIZE from first line of the file
@@ -63,7 +63,7 @@ int main(int argc, char ** argv) {
       char filename[] = "signal.dat";
       if ((inBinaryFile = open(filename, O_RDONLY)) < 0)
 	{
-	  printf("\nFailed to open the file!");
+	  printf("\nFailed to open the file on dat run!\n");
 	  return 1;
 	}
       float *lines;
