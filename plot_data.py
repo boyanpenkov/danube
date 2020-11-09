@@ -11,7 +11,7 @@ if (len(sys.argv) != 1):
     if (method == "one"):
 
         with open(sys.argv[2]) as f:
-            signal = map(float, f)
+            signal = list(map(float, f))
 
         points = int(signal[0])
 
@@ -32,9 +32,9 @@ if (len(sys.argv) != 1):
     elif (method == "two"):
 
         with open(sys.argv[2]) as f:
-            signal1 = map(float, f)
+            signal1 = list(map(float, f))
         with open(sys.argv[3]) as f:
-            signal2 = map(float, f)
+            signal2 = list(map(float, f))
 
         points1 = int(signal1[0])
         points2 = int(signal2[0])
@@ -67,11 +67,11 @@ if (len(sys.argv) != 1):
     elif (method == "three"):
 
         with open(sys.argv[2]) as f:
-            signal1 = map(float, f)
+            signal1 = list(map(float, f))
         with open(sys.argv[3]) as f:
-            signal2 = map(float, f)
+            signal2 = list(map(float, f))
         with open(sys.argv[4]) as f:
-            signal3 = map(float, f)
+            signal3 = list(map(float, f))
 
         points1 = int(signal1[0])
         points2 = int(signal2[0])
@@ -115,7 +115,7 @@ if (len(sys.argv) != 1):
     elif (method == "gradient"):
 
         with open(sys.argv[2]) as f:
-            signal = map(float, f)
+            signal = list(map(float, f))
 
         points = int(signal[0])
 
@@ -143,17 +143,17 @@ if (len(sys.argv) != 1):
 else:
 
     with open(sys.argv[1]) as f:
-        signal = map(float, f)
-    print signal
+        signal = list(map(float, f))
+    print(signal)
 
     with open("transitions_guessed_delta.csv") as f:
-        delta = map(float, f)
+        delta = list(map(float, f))
 
     with open("transitions_guessed_mean.csv") as f:
-        mean = map(float, f)
+        mean = list(map(float, f))
 
     with open("transitions_guessed_canny.csv") as f:
-        canny = map(float, f)
+        canny = list(map(float, f))
 
     points = int(signal[0])
 
