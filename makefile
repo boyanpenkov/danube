@@ -27,8 +27,8 @@ signal.csv:
 	python $(GEN_PY) $(POINTS)
 
 signal.dat: signal.csv
-	python2 text_to_binary.py signal.csv
-	python2 plot_data.py one signal.csv
+	python text_to_binary.py signal.csv
+	python plot_data.py one signal.csv
 
 run: all # usage here is that the data as argv[2], with the correct option at compile-time
 	./$(NAME) mean
