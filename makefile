@@ -24,7 +24,7 @@ re:	# thanks, -j4...
 	@echo "Cleaned and recompiled..."
 
 signal.csv:
-	python2 $(GEN_PY) $(POINTS)
+	python $(GEN_PY) $(POINTS)
 
 signal.dat: signal.csv
 	python2 text_to_binary.py signal.csv
