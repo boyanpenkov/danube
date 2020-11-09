@@ -13,7 +13,13 @@ all: *.h $(SRC_CU)
 	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 $(SRC_CU) -o $(NAME)
 
 clean:
-	trash $(NAME)
+	-trash $(NAME)
+	-trash transitions_guessed_canny.csv
+	-trash transitions_guessed_delta.csv
+	-trash transitions_guessed_mean.csv
+	-trash signal.csv
+	-trash signal.dat
+	-trash generated_signal.png
 
 debug:	*.h $(SRC_CU)
 	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 --ptxas-options=-v -g -G $(SRC_CU) -o $(NAME)
