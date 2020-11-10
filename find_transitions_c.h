@@ -1,49 +1,84 @@
-__global__ void find_transitions_c(float *d_values,
-				   int *d_trans)
-{ // This is the plain-vanilla transition finder for just doing this in straight C on the CPU, for reference.
-  // Inputs pointers to the values and transitions arrays
-  // Makes transitions array a 1 for event points, and 0 for not-event points.
-  int idx = blockIdx.x * blockDim.x * d_ppt+threadIdx.x * d_ppt;
-  float max = -10000;
-  float min = 10000;
+// Get the standard deviation of the values here, over the entire array (out to length).
+float standard_dev(float *values,
+		   int length)
+{
+  float sum = 0.0, mean, SD = 0.0;
 
-  assert(d_values[0] > max);
-  assert(d_values[0] < min);
-  for (int i = idx; i < idx + (d_ppt); i++)
-    {
-      if (d_values[i] > max){
-	max = d_values[i];
-      }
-      if (d_values[i] < min){
-	min = d_values[i];
-      }
-    }
-  assert(max >= min);
-
-  const float delta_threshold = 2;
-  // Tunable -- units close to std
-
-  if (abs(max - min) > delta_threshold)
-    {
-      if (d_ppt > 2)
-	{
-	  int recurse_d_ppt = d_ppt/2; // Both of these are always a power of 2...
-	  int recurse_threads = 2;
-	  int recurse_blocks = 1;
-	  float *recurse_d_values = d_values+idx;
-	  int *recurse_d_trans = d_trans+idx;
-	  find_transitions_delta<<<recurse_blocks, recurse_threads>>>(recurse_d_values, recurse_d_trans, recurse_d_ppt, recurse_threads);
-	}
-      else
-	{
-	  assert(d_ppt <= 2);
-	  for (int i = idx; i < idx + d_ppt; i++)
-	    d_values[i] = d_values[i];
-	}
-    }
-  else {
-    assert((abs(max - min) < delta_threshold));
-    for (int i = idx; i < idx + d_ppt; i++)
-      d_values[i] = NOT_EVENT;
+  for (int i = 0; i < length; ++i) {
+    sum += values[i];
   }
+
+  mean = sum / length;
+
+  for (int i = 0; i < length; ++i)
+    SD += pow(values[i] - mean, 2);
+
+  return sqrt(SD / length);
+}
+
+// This is the plain-vanilla transition finder for just doing this in straight C on the CPU, for reference.
+// Inputs pointers to the values and transitions arrays, mean of the file, and pass count.
+// Makes transitions array a 1 for event points, and 0 for not-event points, based on multipass finder
+// Will modify the values array
+
+void find_transitions_c(float *values,
+			float *trans,
+			float mean,
+			int passes,
+			int length)
+{ // First, start by taking everything from values and storing it in transitions
+  for(int i = 0; i < length; i++)
+    {
+      trans[i] = values[i];
+    }
+  // This is the threshold for how many standard deviations below the mean you'd like to be to be in an event.
+  int thresh = 4;
+  int thresh_back = 2;
+  assert(thresh-thresh_back > 0);
+  // Get some index variables for event start and end.
+  int event_start;
+  int event_end;
+  int event_flag = 0; // Assume we are not in an event.
+  // This is the first standard deviation we'll use.
+  float dev = standard_dev(values, length);
+  // For each pass except the last pass, run eventfinding and replace points with mean value.
+  for (int i = 0; i < passes; i++){
+    // Calculate new standard deviation, use that if it's lower.
+    float new_dev = standard_dev(values, length);
+    if (new_dev < dev){
+      dev = new_dev;
+    }
+    for(int j=0; j<length; j++)
+      {
+	float cutoff_in = mean-(thresh*dev);
+	float cutoff_out = mean-((thresh-thresh_back)*dev);
+	if (event_flag == 0){ // You are not in an event and are looking to enter.
+	  if (values[j] < cutoff_in){ // You are in an event now.
+	    event_flag = 1; // The event flag went up.
+	    event_start = j; // Record where the event started.
+	  }
+	  if (values[j] >= cutoff_in){ // You are not in an event
+	    if (i == passes - 1){ // If on the last pass, perform replacement to zero out non-event areas.
+	      values[j] = NOT_EVENT;
+	    }
+	  }
+	}
+	if (event_flag == 1){ // You are in an event, and are looking to see if you are leaving.
+	  if (values[j] >= cutoff_out){ // You are not in an event anymore, since you moved up by two SDs
+	    event_flag = 0;
+	    event_end = j;
+	    assert (event_start < event_end);
+	    if (i < passes - 1){ // If not on the last pass, do the replacement.
+	      for(int k = event_start; k < event_end; k++){
+		values[k] = mean;
+	      }
+	    }
+	  }
+	}
+      }
+    for(int i = 0; i < length; i++) // Take the points in values that are not in events, and zero them out in transitions, preserving the original transitions points (not the ones that got changed by the multipass replacement.
+      {
+	if (values[i] == NOT_EVENT){trans[i] = NOT_EVENT;}}
+  }
+  printf("Pure C eventfinding finished OK.\n");
 }

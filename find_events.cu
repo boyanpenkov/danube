@@ -1,5 +1,6 @@
 #define MACRO_THREADS 1024
 #define NOT_EVENT 0
+#define INTERVAL 500
 
 #define PPT 64
 #define FILT_WINDOW 5
@@ -12,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <math.h>
 #include <fcntl.h>
 #include <assert.h>
 #include <string.h>
@@ -28,9 +30,8 @@ int SIZE; // length of the data file going in, in units of points...
 #include "find_high_random.h"
 #include "mean_filter_signal.h"
 
-float *h_values_raw;
 float *h_values;
-int *h_transitions;
+float *h_values_raw;
 float *h_high_mean;
 float *d_values;
 int *d_transitions;
@@ -122,8 +123,7 @@ int main(int argc, char ** argv) {
 
   cudaMallocHost((void**) &h_values, cropped_bytes);
 
-  int i;
-  for(i=1; i<cropped_size; i++)
+  for(int i=1; i<cropped_size; i++)
     {
         h_values[i] = h_values_raw[i];
     }
@@ -131,7 +131,6 @@ int main(int argc, char ** argv) {
   free(h_values_raw);
 
   FILE *f;  // Regardless of CPU or GPU, this is the file you're writing results to.
-  h_transitions = (int*)calloc(BLOCKS, sizeof(int));
   h_high_mean = (float*)calloc(1, sizeof(float));
 
   if (argc == 1)
@@ -147,10 +146,21 @@ int main(int argc, char ** argv) {
     {
       printf("Using CPU.\n");
       // Now you are not using the GPU at all, and are just on C on the CPU.
-      // Run the relevant transition finder
-      find_transitions_c( h_values, h_transitions );
+      // Run the relevant transition finder, using a multipass finder for now.
+      *h_high_mean = find_high_random(h_values);
+      float *h_transitions = (float*)calloc(cropped_size, sizeof(float));
+      int passes = 3; // How many passes do you want your multipass eventfinder to run on?
+      find_transitions_c( h_values, h_transitions, *h_high_mean, passes, cropped_size);
+      // This is going to modify h_values, so get rid of it for safety.
+      printf("Made it here.\n");
+      cudaFree(h_values);
       // open the correct guessed transition file for writing.
       f = fopen("transitions_guessed_c.csv", "w");
+      // Write the found transitions to the correct file you opened above.
+      for (int i = 0; i < cropped_size; i++)
+	fprintf(f, "%f\n", h_transitions[i]);
+      fclose(f);
+      printf("CPU run done.\n");
     }
 
   else
@@ -213,12 +223,12 @@ int main(int argc, char ** argv) {
       // free GPU memory
       cudaFree(d_values);
       cudaStreamDestroy(stream1);
+      // Write the found transitions to the correct file you opened above.
+      for (int i = 0; i < cropped_size; i++)
+	fprintf(f, "%f\n", h_values[i]);
+      fclose(f);
+      printf("GPU run done.\n");
     }
-
-  // Write the found transitions to the correct file you opened above.
-  for (int i = 0; i < cropped_size; i++)
-    fprintf(f, "%f\n", h_values[i]);
-  fclose(f);
 
   char eventFlag = 'F';
   int total_transitions = 0;
@@ -233,7 +243,7 @@ int main(int argc, char ** argv) {
       continue; // moving along event
     }
     else if (h_values[i] == NOT_EVENT && eventFlag == 'T'){
-      total_transitions++;
+      total_transitions++; // just left an event
       eventFlag = 'F';
     }
     else { return 1;}
