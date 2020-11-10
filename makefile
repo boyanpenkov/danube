@@ -13,6 +13,7 @@ clean:
 	-trash transitions_guessed_canny.csv
 	-trash transitions_guessed_delta.csv
 	-trash transitions_guessed_mean.csv
+	-trash transitions_guessed_c.csv
 	-trash signal.csv
 	-trash signal.dat
 	-trash generated_signal.png
