@@ -152,7 +152,6 @@ int main(int argc, char ** argv) {
       int passes = 3; // How many passes do you want your multipass eventfinder to run on?
       find_transitions_c( h_values, h_transitions, *h_high_mean, passes, cropped_size);
       // This is going to modify h_values, so get rid of it for safety.
-      printf("Made it here.\n");
       cudaFree(h_values);
       // open the correct guessed transition file for writing.
       f = fopen("transitions_guessed_c.csv", "w");

@@ -1,9 +1,9 @@
 CFLAGS = -Wall -Wextra
 POINTS = 2500000
 
-.PHONY: all clean debug re
+.PHONY: build clean debug re
 
-all: build c run
+all: build c run plot
 
 build: *.h find_events.cu
 	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 find_events.cu -o find_events
@@ -46,5 +46,5 @@ csv: build signal.csv # usage here is that the data as argv[2], with the correct
 	./find_events delta signal.csv
 	./find_events canny signal.csv
 
-plot:
+plot: c run
 	python plot_csv.py signal.csv
