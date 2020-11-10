@@ -24,6 +24,7 @@ int SIZE; // length of the data file going in, in units of points...
 #include "find_transitions_mean.h"
 #include "find_transitions_delta.h"
 #include "find_transitions_canny.h"
+#include "find_transitions_c.h"
 #include "find_high_random.h"
 #include "mean_filter_signal.h"
 
@@ -78,9 +79,8 @@ int main(int argc, char ** argv) {
       SIZE = (*lines);
     }
 
-  printf("%d was the number of points you just passed in.\n", SIZE);
-
   assert(SIZE > 0);
+  printf("%d was the number of points you just passed in.\n", SIZE);
 
   const int THREADS = MACRO_THREADS;
   const int BLOCKS = floor((((float)SIZE / (float)THREADS)) / PPT);
@@ -121,7 +121,6 @@ int main(int argc, char ** argv) {
     }
 
   cudaMallocHost((void**) &h_values, cropped_bytes);
-  FILE *f;  // Regardless of CPU or GPU, this is the file you're writing results to.
 
   int i;
   for(i=1; i<cropped_size; i++)
@@ -130,6 +129,8 @@ int main(int argc, char ** argv) {
     }
 
   free(h_values_raw);
+
+  FILE *f;  // Regardless of CPU or GPU, this is the file you're writing results to.
   h_transitions = (int*)calloc(BLOCKS, sizeof(int));
   h_high_mean = (float*)calloc(1, sizeof(float));
 
@@ -146,6 +147,10 @@ int main(int argc, char ** argv) {
     {
       printf("Using CPU.\n");
       // Now you are not using the GPU at all, and are just on C on the CPU.
+      // Run the relevant transition finder
+      find_transitions_c (h_values, h_transitions);
+      // open the correct guessed transition file for writing.
+      f = fopen("transitions_guessed_c.csv", "w");
     }
 
   else
@@ -172,26 +177,27 @@ int main(int argc, char ** argv) {
 	{
 	  // Transfer the array to GPU
 	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
-	  find_transitions_delta <<< BLOCKS, THREADS, 0, stream1>>>(d_values, d_transitions, PPT, MACRO_THREADS);
-	  // copy the result back to CPU
+	  // Run the relevant transition finder
+	  find_transitions_delta <<< BLOCKS, THREADS, 0, stream1 >>> (d_values, d_transitions, PPT, MACRO_THREADS);
+	  // open the correct guessed transition file for writing.
 	  f = fopen("transitions_guessed_delta.csv", "w");
 	  expected_values = EVENTS*2;
+	  // copy the result back to CPU
 	  cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
 	}
       else if (strcmp(argv[1], "mean") == 0)
 	{
 	  *h_high_mean = find_high_random(h_values);
 	  cudaMemcpy(d_high_mean, h_high_mean, sizeof(float), cudaMemcpyHostToDevice);
-	  find_transitions_mean <<< BLOCKS, THREADS, 0, stream1>>>(d_values, d_transitions, PPT, MACRO_THREADS, d_high_mean);
+	  find_transitions_mean <<< BLOCKS, THREADS, 0, stream1 >>> (d_values, d_transitions, PPT, MACRO_THREADS, d_high_mean);
 	  f = fopen("transitions_guessed_mean.csv", "w");
 	  cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
 	}
       else if (strcmp(argv[1], "canny") == 0)
 	{
-	  // Transfer the array to GPU
 	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
-	  mean_filter_signal<<< BLOCKS, THREADS,0, stream1>>>(d_values, PPT, FILT_WINDOW, d_size, d_smoothed);
-	  find_transitions_canny<<< BLOCKS, THREADS,0, stream1 >>>(d_values, d_transitions, PPT, d_size, d_gradient);
+	  mean_filter_signal <<< BLOCKS, THREADS,0, stream1 >>> (d_values, PPT, FILT_WINDOW, d_size, d_smoothed);
+	  find_transitions_canny <<< BLOCKS, THREADS,0, stream1 >>> (d_values, d_transitions, PPT, d_size, d_gradient);
 	  f = fopen("transitions_guessed_canny.csv", "w");
 	  expected_values = EVENTS*2;
 	  cudaMemcpy(h_values, d_gradient, cropped_bytes, cudaMemcpyDeviceToHost);
@@ -209,7 +215,7 @@ int main(int argc, char ** argv) {
       cudaStreamDestroy(stream1);
     }
 
-  // Write the found transitions to a file
+  // Write the found transitions to the correct file you opened above.
   for (int i = 0; i < cropped_size; i++)
     fprintf(f, "%f\n", h_values[i]);
   fclose(f);
