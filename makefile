@@ -3,7 +3,9 @@ POINTS = 2500000
 
 .PHONY: all clean debug re
 
-all: *.h find_events.cu
+all: build c run
+
+build: *.h find_events.cu
 	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 find_events.cu -o find_events
 
 clean:
@@ -20,7 +22,7 @@ debug:	*.h find_events.cu
 
 re:	# thanks, -j4...
 	make clean
-	make all
+	make build
 	@echo "Cleaned and recompiled..."
 
 signal.csv:
@@ -30,18 +32,18 @@ signal.dat: signal.csv
 	python text_to_binary.py signal.csv
 	python plot_data.py one signal.csv
 
-run: all signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
+run: build signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
 	./find_events mean
 	./find_events delta
 	./find_events canny
 
-csv: all signal.csv # usage here is that the data as argv[2], with the correct option at compile-time
+c: build signal.dat
+	./find_events c
+
+csv: build signal.csv # usage here is that the data as argv[2], with the correct option at compile-time
 	./find_events mean signal.csv
 	./find_events delta signal.csv
 	./find_events canny signal.csv
 
 plot:
 	python plot_csv.py signal.csv
-
-c: all signal.dat
-	./find_events c
