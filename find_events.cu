@@ -148,7 +148,7 @@ int main(int argc, char ** argv) {
       printf("Using CPU.\n");
       // Now you are not using the GPU at all, and are just on C on the CPU.
       // Run the relevant transition finder
-      find_transitions_c (h_values, h_transitions);
+      find_transitions_c( h_values, h_transitions );
       // open the correct guessed transition file for writing.
       f = fopen("transitions_guessed_c.csv", "w");
     }

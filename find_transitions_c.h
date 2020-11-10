@@ -1,6 +1,8 @@
 __global__ void find_transitions_c(float *d_values,
 				   int *d_trans)
 { // This is the plain-vanilla transition finder for just doing this in straight C on the CPU, for reference.
+  // Inputs pointers to the values and transitions arrays
+  // Makes transitions array a 1 for event points, and 0 for not-event points.
   int idx = blockIdx.x * blockDim.x * d_ppt+threadIdx.x * d_ppt;
   float max = -10000;
   float min = 10000;
