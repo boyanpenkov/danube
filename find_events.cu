@@ -249,4 +249,5 @@ int main(int argc, char ** argv) {
   }
   printf("Computed with %s : ", argv[1]);
   printf("%d (%d expected for synthetically generated data.)\n", total_transitions, expected_values);
+  return 0;
 }
