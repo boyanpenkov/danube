@@ -1,5 +1,5 @@
 CFLAGS = -Wall -Wextra
-POINTS = 2500000
+POINTS = 25000000
 
 .PHONY: build clean debug re
 
@@ -33,7 +33,7 @@ signal.dat: signal.csv
 	python text_to_binary.py signal.csv
 	python plot_data.py one signal.csv
 
-run: build signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
+run: c build signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
 	./find_events mean
 	./find_events delta
 	./find_events canny
