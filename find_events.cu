@@ -1,6 +1,31 @@
 #define MACRO_THREADS 1024
 #define NOT_EVENT 0
 #define INTERVAL 500
+#define USE_NVTX
+
+#ifdef USE_NVTX
+#include "nvToolsExt.h"
+
+const uint32_t colors[] = { 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff, 0xffff0000, 0xffffffff };
+const int num_colors = sizeof(colors)/sizeof(uint32_t);
+
+#define PUSH_RANGE(name,cid) { \
+    int color_id = cid; \
+    color_id = color_id%num_colors;\
+    nvtxEventAttributes_t eventAttrib = {0}; \
+    eventAttrib.version = NVTX_VERSION; \
+    eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
+    eventAttrib.colorType = NVTX_COLOR_ARGB; \
+    eventAttrib.color = colors[color_id]; \
+    eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII; \
+    eventAttrib.message.ascii = name; \
+    nvtxRangePushEx(&eventAttrib); \
+}
+#define POP_RANGE nvtxRangePop();
+#else
+#define PUSH_RANGE(name,cid)
+#define POP_RANGE
+#endif
 
 #define PPT 64
 #define FILT_WINDOW 5
@@ -144,6 +169,7 @@ int main(int argc, char ** argv) {
 
   if (strcmp(argv[1], "c") == 0)
     {
+      PUSH_RANGE("CPU run.",1)
       printf("Using CPU.\n");
       // Now you are not using the GPU at all, and are just on C on the CPU.
       // Run the relevant transition finder, using a multipass finder for now.
@@ -160,6 +186,7 @@ int main(int argc, char ** argv) {
 	fprintf(f, "%f\n", h_transitions[i]);
       fclose(f);
       printf("CPU run done.\n");
+      POP_RANGE
     }
 
   else
