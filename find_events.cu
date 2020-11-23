@@ -174,7 +174,7 @@ int main(int argc, char ** argv) {
 
   if (strcmp(argv[1], "c") == 0)
     {
-      PUSH_RANGE("Find with C",1)
+      PUSH_RANGE("Find with C",2)
       printf("Using CPU.\n");
       // Now you are not using the GPU at all, and are just on C on the CPU.
       // Run the relevant transition finder, using a multipass finder for now.
@@ -197,7 +197,7 @@ int main(int argc, char ** argv) {
   else
     { // You are in the GPU branch.
       // Allocate GPU memory
-      PUSH_RANGE("Allocate GPU memory",1)
+      PUSH_RANGE("Allocate GPU memory",3)
       printf("Using GPU.\n");
       cudaMalloc((void**) &d_values, cropped_bytes);
       cudaMalloc((void**) &d_smoothed, cropped_bytes);
@@ -219,7 +219,7 @@ int main(int argc, char ** argv) {
 
       if (strcmp(argv[1], "delta") == 0)
 	{
-	  PUSH_RANGE("Find with delta",1)
+	  PUSH_RANGE("Find with delta",2)
 	  // Transfer the array to GPU
 	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
 	  // Run the relevant transition finder
@@ -233,7 +233,7 @@ int main(int argc, char ** argv) {
 	}
       else if (strcmp(argv[1], "mean") == 0)
 	{
-	  PUSH_RANGE("Find with mean",1)
+	  PUSH_RANGE("Find with mean",2)
 	  *h_high_mean = find_high_random(h_values);
 	  cudaMemcpy(d_high_mean, h_high_mean, sizeof(float), cudaMemcpyHostToDevice);
 	  find_transitions_mean <<< BLOCKS, THREADS, 0, stream1 >>> (d_values, d_transitions, PPT, MACRO_THREADS, d_high_mean);
@@ -243,7 +243,7 @@ int main(int argc, char ** argv) {
 	}
       else if (strcmp(argv[1], "canny") == 0)
 	{
-	  PUSH_RANGE("Find with canny",1)
+	  PUSH_RANGE("Find with canny",2)
 	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
 	  mean_filter_signal <<< BLOCKS, THREADS,0, stream1 >>> (d_values, PPT, FILT_WINDOW, d_size, d_smoothed);
 	  find_transitions_canny <<< BLOCKS, THREADS,0, stream1 >>> (d_values, d_transitions, PPT, d_size, d_gradient);
@@ -270,7 +270,7 @@ int main(int argc, char ** argv) {
       printf("GPU run done.\n");
     }
 
-  PUSH_RANGE("Count transitions",1)
+  PUSH_RANGE("Count transitions",4)
   char eventFlag = 'F';
   int total_transitions = 0;
   for (int i = 0; i < cropped_size; i++){
