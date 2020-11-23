@@ -1,12 +1,12 @@
 CFLAGS = -Wall -Wextra
-POINTS = 25000000
+POINTS = 10000000
 
 .PHONY: build clean debug re
 
 all: build c run plot
 
 build: *.h find_events.cu
-	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 find_events.cu -o find_events
+	nvcc -lnvToolsExt -rdc=true -gencode arch=compute_50,code=compute_50 find_events.cu -o find_events
 
 clean:
 	-trash find_events

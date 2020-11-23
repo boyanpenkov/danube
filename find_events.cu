@@ -1,6 +1,33 @@
 #define MACRO_THREADS 1024
 #define NOT_EVENT 0
 #define INTERVAL 500
+#define USE_NVTX
+
+// Following along from https://developer.nvidia.com/blog/cuda-pro-tip-generate-custom-application-profile-timelines-nvtx/
+
+#ifdef USE_NVTX
+#include "nvToolsExt.h"
+
+const uint32_t colors[] = { 0xff00ff00, 0xff0000ff, 0xffffff00, 0xffff00ff, 0xff00ffff, 0xffff0000, 0xffffffff };
+const int num_colors = sizeof(colors)/sizeof(uint32_t);
+
+#define PUSH_RANGE(name,cid) { \
+    int color_id = cid; \
+    color_id = color_id%num_colors;\
+    nvtxEventAttributes_t eventAttrib = {0}; \
+    eventAttrib.version = NVTX_VERSION; \
+    eventAttrib.size = NVTX_EVENT_ATTRIB_STRUCT_SIZE; \
+    eventAttrib.colorType = NVTX_COLOR_ARGB; \
+    eventAttrib.color = colors[color_id]; \
+    eventAttrib.messageType = NVTX_MESSAGE_TYPE_ASCII; \
+    eventAttrib.message.ascii = name; \
+    nvtxRangePushEx(&eventAttrib); \
+}
+#define POP_RANGE nvtxRangePop();
+#else
+#define PUSH_RANGE(name,cid)
+#define POP_RANGE
+#endif
 
 #define PPT 64
 #define FILT_WINDOW 5
@@ -42,6 +69,7 @@ float *d_smoothed;
 
 int main(int argc, char ** argv) {
 
+  PUSH_RANGE("Read file and load data",1)
   int expected_values = EVENTS;
   int inBinaryFile;
 
@@ -142,14 +170,17 @@ int main(int argc, char ** argv) {
       return 1;
     }
 
+  POP_RANGE
+
   if (strcmp(argv[1], "c") == 0)
     {
+      PUSH_RANGE("Find with C",1)
       printf("Using CPU.\n");
       // Now you are not using the GPU at all, and are just on C on the CPU.
       // Run the relevant transition finder, using a multipass finder for now.
       *h_high_mean = find_high_random(h_values);
       float *h_transitions = (float*)calloc(cropped_size, sizeof(float));
-      int passes = 3; // How many passes do you want your multipass eventfinder to run on?
+      int passes = 6; // How many passes do you want your multipass eventfinder to run on?
       find_transitions_c( h_values, h_transitions, *h_high_mean, passes, cropped_size);
       // This is going to modify h_values, so get rid of it for safety.
       cudaFree(h_values);
@@ -160,11 +191,13 @@ int main(int argc, char ** argv) {
 	fprintf(f, "%f\n", h_transitions[i]);
       fclose(f);
       printf("CPU run done.\n");
+      POP_RANGE
     }
 
   else
     { // You are in the GPU branch.
       // Allocate GPU memory
+      PUSH_RANGE("Allocate GPU memory",1)
       printf("Using GPU.\n");
       cudaMalloc((void**) &d_values, cropped_bytes);
       cudaMalloc((void**) &d_smoothed, cropped_bytes);
@@ -182,8 +215,11 @@ int main(int argc, char ** argv) {
 
       printf("All pre-kernel launch stuff OK.\n");
       fflush(stdout);
+      POP_RANGE
+
       if (strcmp(argv[1], "delta") == 0)
 	{
+	  PUSH_RANGE("Find with delta",1)
 	  // Transfer the array to GPU
 	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
 	  // Run the relevant transition finder
@@ -193,23 +229,28 @@ int main(int argc, char ** argv) {
 	  expected_values = EVENTS*2;
 	  // copy the result back to CPU
 	  cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
+	  POP_RANGE
 	}
       else if (strcmp(argv[1], "mean") == 0)
 	{
+	  PUSH_RANGE("Find with mean",1)
 	  *h_high_mean = find_high_random(h_values);
 	  cudaMemcpy(d_high_mean, h_high_mean, sizeof(float), cudaMemcpyHostToDevice);
 	  find_transitions_mean <<< BLOCKS, THREADS, 0, stream1 >>> (d_values, d_transitions, PPT, MACRO_THREADS, d_high_mean);
 	  f = fopen("transitions_guessed_mean.csv", "w");
 	  cudaMemcpy(h_values, d_values, cropped_bytes, cudaMemcpyDeviceToHost);
+	  POP_RANGE
 	}
       else if (strcmp(argv[1], "canny") == 0)
 	{
+	  PUSH_RANGE("Find with canny",1)
 	  cudaMemcpy(d_size, &cropped_size, sizeof(int), cudaMemcpyHostToDevice);
 	  mean_filter_signal <<< BLOCKS, THREADS,0, stream1 >>> (d_values, PPT, FILT_WINDOW, d_size, d_smoothed);
 	  find_transitions_canny <<< BLOCKS, THREADS,0, stream1 >>> (d_values, d_transitions, PPT, d_size, d_gradient);
 	  f = fopen("transitions_guessed_canny.csv", "w");
 	  expected_values = EVENTS*2;
 	  cudaMemcpy(h_values, d_gradient, cropped_bytes, cudaMemcpyDeviceToHost);
+	  POP_RANGE
 	}
       else
 	{
@@ -229,6 +270,7 @@ int main(int argc, char ** argv) {
       printf("GPU run done.\n");
     }
 
+  PUSH_RANGE("Count transitions",1)
   char eventFlag = 'F';
   int total_transitions = 0;
   for (int i = 0; i < cropped_size; i++){
@@ -247,6 +289,7 @@ int main(int argc, char ** argv) {
     }
     else { return 1;}
   }
+  POP_RANGE
   printf("Computed with %s : ", argv[1]);
   printf("%d (%d expected for synthetically generated data.)\n", total_transitions, expected_values);
   return 0;
