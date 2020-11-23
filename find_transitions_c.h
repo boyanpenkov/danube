@@ -39,9 +39,6 @@ void find_transitions_c(float *values,
   int thresh_back = 2;
   assert(thresh-thresh_back > 0);
 
-  // Get some index variables for event start and end.
-  int event_start;
-  int event_end;
   int event_flag = 0; // Assume we are not in an event to start.
 
   // Set up array to check standard deviations.
@@ -69,38 +66,42 @@ void find_transitions_c(float *values,
     float cutoff_in = mean-(thresh*dev);
     float cutoff_out = mean-((thresh-thresh_back)*dev);
     // Now, walk over array, and call events.
-    for(int j=0; j<length; j++)
-      {
-	if (event_flag == 0){ // You are not in an event and are looking to enter.
-	  if (values[j] < cutoff_in){ // You are in an event now.
-	    event_flag = 1; // The event flag went up.
-	    event_start = j; // Record where the event started.
-	    printf("Flagged one.\n");
-	  }
-	  if (values[j] >= cutoff_in){ // You are not in an event
-	    if (i == passes - 1){ // If on the last pass, perform replacement to zero out non-event areas.
-	      values[j] = NOT_EVENT;
-	    }
+    for(int j=0; j<length; j++){
+      // Need these to reset every pass.
+      int event_start;
+      int event_end;
+      if (event_flag == 0){ // You are not in an event and are looking to enter.
+	if (values[j] <= cutoff_in){ // You are in an event now.
+	  event_flag = 1; // The event flag went up.
+	  event_start = j; // Record where the event started.
+	}
+	else { // You are not in an event
+	  if (i == passes - 1){ // If on the last pass, perform replacement to zero out non-event areas.
+	    values[j] = NOT_EVENT;
 	  }
 	}
-	if (event_flag == 1){ // You are in an event, and are looking to see if you are leaving.
-	  if (values[j] >= cutoff_out){ // You are not in an event anymore, since you moved up.
-	    event_flag = 0;
-	    event_end = j;
-	    assert (event_start < event_end);
-	    printf("Flagged exit.\n");
-	    if (i < passes - 1){ // If not on the last pass, do the replacement.
-	      for(int k = event_start; k < event_end; k++){
-		values_for_dev[k] = mean;
-	      }
+      }
+      if (event_flag == 1){ // You are in an event, and are looking to see if you are leaving.
+	if (values[j] >= cutoff_out){ // You are not in an event anymore, since you moved up.
+	  event_flag = 0;
+	  event_end = j;
+	  values[j] = NOT_EVENT;
+	  assert (event_start < event_end);
+	  if (i < passes - 1){ // If not on the last pass, do the replacement.
+	    for(int k = event_start; k < event_end; k++){
+	      values_for_dev[k] = mean;
 	    }
 	  }
 	}
       }
-    for(int i = 0; i < length; i++) // Take the points in values that are not in events, and zero them out in transitions, preserving the original transitions points (not the ones that got changed by the multipass replacement).
-      {
-	if (values[i] == NOT_EVENT){trans[i] = NOT_EVENT;}}
+    }
   }
   free(values_for_dev);
+  // Take the points in values that are not in events, and zero them out in transitions.
+  for(int i = 0; i < length; i++){
+      if (values[i] == NOT_EVENT){
+	  trans[i] = NOT_EVENT;
+      }
+  }
   printf("Pure C eventfinding finished OK.\n");
 }
