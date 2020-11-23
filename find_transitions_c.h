@@ -4,16 +4,11 @@ float standard_dev(float *values,
 		   int length)
 {
   float sum = 0.0, mean, SD = 0.0;
-
-  for (int i = 0; i < length; ++i) {
+  for (int i = 0; i < length; ++i)
     sum += values[i];
-  }
-
   mean = sum / length;
-
   for (int i = 0; i < length; ++i)
     SD += pow(values[i] - mean, 2);
-
   return sqrt(SD / length);
 }
 
@@ -50,19 +45,13 @@ void find_transitions_c(float *values,
   }
 
   // This is the first standard deviation we'll use.
-  float dev = standard_dev(values_for_dev, length);
+  float dev = standard_dev(values_for_dev, length/200);
   printf("Initial dev: %f\n", dev);
 
   // For each pass except the last pass, run eventfinding and replace points with mean value.
   // For the last pass, call the event.
   for (int i = 0; i < passes; i++){
 
-    // Calculate new standard deviation, use that if it's lower.
-    float new_dev = standard_dev(values_for_dev, length);
-    printf("Revised deviation: %f\n", new_dev);
-    if (new_dev < dev){
-      dev = new_dev;
-    }
     float cutoff_in = mean-(thresh*dev);
     float cutoff_out = mean-((thresh-thresh_back)*dev);
     // Now, walk over array, and call events.
@@ -81,7 +70,8 @@ void find_transitions_c(float *values,
 	  }
 	}
       }
-      if (event_flag == 1){ // You are in an event, and are looking to see if you are leaving.
+      else{ // You are in an event, and are looking to see if you are leaving.
+	assert(event_flag == 1);
 	if (values[j] >= cutoff_out){ // You are not in an event anymore, since you moved up.
 	  event_flag = 0;
 	  event_end = j;
@@ -94,6 +84,12 @@ void find_transitions_c(float *values,
 	  }
 	}
       }
+    }
+    // Calculate new standard deviation, use that if it's lower.
+    float new_dev = standard_dev(values_for_dev, length);
+    printf("Revised deviation: %f\n", new_dev);
+    if (new_dev < dev){
+      dev = new_dev;
     }
   }
   free(values_for_dev);

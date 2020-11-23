@@ -1,5 +1,5 @@
 CFLAGS = -Wall -Wextra
-POINTS = 10000000
+POINTS = 100000000
 
 .PHONY: build clean debug re
 
