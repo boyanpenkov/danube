@@ -27,7 +27,6 @@ if (len(sys.argv) != 1):
 
         plt.plot(x, y_signal, color='blue', linewidth=2, marker='.',
                  markerfacecolor='blue', markersize=2, alpha=0.5)
-        plt.show()
 
     elif (method == "two"):
 
@@ -62,7 +61,6 @@ if (len(sys.argv) != 1):
         plt.plot(x2, y_signal2, color='blue', linewidth=2, marker='.',
                  markerfacecolor='blue', markersize=2, alpha=0.5)
 
-        plt.show()
 
     elif (method == "three"):
 
@@ -138,7 +136,6 @@ if (len(sys.argv) != 1):
         plt.plot(x, y_signal2, color='blue', linewidth=2, marker='.',
                  markerfacecolor='blue', markersize=2, alpha=0.5)
 
-        plt.show()
 
 else:
 
@@ -178,4 +175,5 @@ else:
              markerfacecolor='blue', markersize=2, alpha=0.5)
     plt.plot(x, y_canny, color='yellow', linewidth=2, marker='.',
              markerfacecolor='yellow', markersize=2, alpha=0.5)
-    plt.show()
+
+plt.show(block=False)

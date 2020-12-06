@@ -21,8 +21,8 @@ __global__ void find_transitions_mean(float *d_values,
 	// There may be a transition here, but be careful, you're wide..
 	{
 	  int recurse_d_ppt = d_ppt/2; // Both of these are always a power of 2...
-	  int recurse_threads = 4;
-	  int recurse_blocks = 1;
+	  int recurse_threads = MACRO_THREADS;
+	  int recurse_blocks = floor((((float) d_ppt / (float) recurse_threads)) / (float) recurse_d_ppt);;
 	  float *recurse_d_values = d_values+idx;
 	  int *recurse_d_trans = d_trans+idx;
 	  find_transitions_mean<<<recurse_blocks, recurse_threads>>>(recurse_d_values, recurse_d_trans, recurse_d_ppt, recurse_threads, d_high);

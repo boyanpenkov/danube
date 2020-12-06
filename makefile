@@ -1,51 +1,50 @@
 CFLAGS = -Wall -Wextra
+POINTS = 100000000
 
-POINTS = 250000
+.PHONY: build clean debug re
 
-NAME = find_events
-MIN_SRC = find_events.cu
-SRC_CU = find_events.cu
-GEN_PY = signal_generator.py
+all: build c run plot
 
-.PHONY: all clean debug re
-
-all: *.h $(SRC_CU)
-	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 $(SRC_CU) -o $(NAME)
+build: *.h find_events.cu
+	nvcc -lnvToolsExt -rdc=true -gencode arch=compute_50,code=compute_50 find_events.cu -o find_events
 
 clean:
-	-trash $(NAME)
+	-trash find_events
 	-trash transitions_guessed_canny.csv
 	-trash transitions_guessed_delta.csv
 	-trash transitions_guessed_mean.csv
+	-trash transitions_guessed_c.csv
 	-trash signal.csv
 	-trash signal.dat
 	-trash generated_signal.png
 
-debug:	*.h $(SRC_CU)
-	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 --ptxas-options=-v -g -G $(SRC_CU) -o $(NAME)
+debug:	*.h find_events.cu
+	nvcc -rdc=true -gencode arch=compute_50,code=compute_50 --ptxas-options=-v -g -G find_events.cu -o find_events
 
 re:	# thanks, -j4...
 	make clean
-	make all
+	make build
 	@echo "Cleaned and recompiled..."
 
 signal.csv:
-	python $(GEN_PY) $(POINTS)
+	python signal_generator.py $(POINTS)
 
 signal.dat: signal.csv
 	python text_to_binary.py signal.csv
 	python plot_data.py one signal.csv
 
-run: all signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
-	./$(NAME) mean
-	./$(NAME) delta
-	./$(NAME) canny
+run: c build signal.dat # usage here is that the data as argv[2], with the correct option at compile-time
+	./find_events mean
+	./find_events delta
+	./find_events canny
 
-csv: all signal.csv # usage here is that the data as argv[2], with the correct option at compile-time
-	./$(NAME) mean signal.csv
-	./$(NAME) delta signal.csv
-	./$(NAME) canny signal.csv
+c: build signal.dat
+	./find_events c
 
-plot:
+csv: build signal.csv # usage here is that the data as argv[2], with the correct option at compile-time
+	./find_events mean signal.csv
+	./find_events delta signal.csv
+	./find_events canny signal.csv
+
+plot: c run
 	python plot_csv.py signal.csv
-
