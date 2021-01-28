@@ -24,11 +24,10 @@ void find_transitions_c(float *values,
 			int length)
 {
   // First, start by taking everything from values and storing it in transitions
-  for(int i = 0; i < length; i++)
-    {
-      trans[i] = values[i];
-    }
-
+  for(int i = 0; i < length; i++) {
+    trans[i] = values[i];
+  }
+  
   // This is the threshold for how many standard deviations below the mean you'd like to be to be in an event.
   int thresh = 3;
   int thresh_back = 2;
@@ -51,7 +50,6 @@ void find_transitions_c(float *values,
   // For each pass except the last pass, run eventfinding and replace points with mean value.
   // For the last pass, call the event.
   for (int i = 0; i < passes; i++){
-
     float cutoff_in = mean-(thresh*dev);
     float cutoff_out = mean-((thresh-thresh_back)*dev);
     // Now, walk over array, and call events.
