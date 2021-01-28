@@ -20,14 +20,14 @@ __global__ void find_transitions_canny(float *d_v,
       d_grad[i] = (d_v[i + 1] - d_v[i]) / 2;
     else if (i >= *d_s - 1)
       d_grad[*d_s - 1] = (d_v[*d_s - 1] - d_v[*d_s - 2]) / 2;
-    else
-      {d_grad[i] = fabsf((d_v[i + 1] - d_v[i - 1]) / 2);
-	if (d_grad[i] > EVENT_THRESHOLD)
-	  {found[threadIdx.x] = 1;
-	    d_grad[i] = d_v[i];
-	  }
-	else d_grad[i] = NOT_EVENT;
-      }
+    else{
+      d_grad[i] = fabsf((d_v[i + 1] - d_v[i - 1]) / 2);
+      if (d_grad[i] > EVENT_THRESHOLD)
+	{found[threadIdx.x] = 1;
+	  d_grad[i] = d_v[i];
+	}
+      else d_grad[i] = NOT_EVENT;
+    }
   }
   
   __syncthreads();

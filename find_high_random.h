@@ -11,15 +11,14 @@ float find_high_random(float *values)
 
   int start_index = 0;
 
-  for (int i = 0 ; i < trials; i++)
-    {
+  for (int i = 0 ; i < trials; i++) {
     for (int j = start_index; j < start_index + interval_size; j++)
       mean_high[i] += values[j];
 
     mean_high[i] /= interval_size;
     // generate a random sampling index
     start_index = rand() % ((SIZE - interval_size) + 1);
-    }
+  }
 
   float max = -100000;
 
